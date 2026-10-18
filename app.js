@@ -10,13 +10,30 @@ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{tab=b.dataset.t;docu
 // clocks
 setInterval(()=>{const f=tz=>new Date().toLocaleTimeString('en-US',{timeZone:tz,hour12:false});$('#ctClock').textContent=f('America/Chicago')+' CT';$('#myClock').textContent=f(Intl.DateTimeFormat().resolvedOptions().timeZone)+' '+Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()},500);
 function setTxt(el,t){if(el.textContent!==t){el.textContent=t;if(!RM){el.classList.remove('glitch');void el.offsetWidth;el.classList.add('glitch')}}}
-function cv(id){const c=$(id),r=devicePixelRatio||1,w=c.clientWidth,h=+c.getAttribute('height');c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.scale(r,r);x.clearRect(0,0,w,h);return [x,w,h]}
+// Size from the CSS box, never from the height attribute. Assigning canvas.height
+// writes bitmap pixels back into that attribute, so the next poll multiplied by
+// devicePixelRatio again until the buffer exceeded the GPU limit and Chrome
+// painted the canvas solid white (the scanline overlay then striped it).
+function cv(id){const c=$(id),cssW=c.clientWidth,cssH=c.clientHeight;if(cssW<2||cssH<2)return null;
+ let r=devicePixelRatio||1;const MAX=8192;if(cssW*r>MAX)r=MAX/cssW;if(cssH*r>MAX)r=MAX/cssH;
+ const bw=Math.max(1,Math.round(cssW*r)),bh=Math.max(1,Math.round(cssH*r));
+ if(c.width!==bw||c.height!==bh){c.width=bw;c.height=bh}
+ const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);x.clearRect(0,0,cssW,cssH);return [x,cssW,cssH,r]}
 function line(x,pts,w,h,color,minY,maxY,minX,maxX){if(pts.length<2)return;x.strokeStyle=color;x.shadowColor=color;x.shadowBlur=8;x.lineWidth=2;x.beginPath();pts.forEach(([a,b],i)=>{const px=(a-minX)/(maxX-minX||1)*w,py=h-(b-minY)/(maxY-minY||1)*(h-10)-5;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();x.shadowBlur=0}
-function drawMap(){const [x,w,h]=cv('#map');const P=(lo,la)=>[(lo+180)/360*w,(90-la)/180*h];
- x.strokeStyle='rgba(255,43,214,.18)';x.lineWidth=1;for(let lo=-180;lo<=180;lo+=30){x.beginPath();x.moveTo(...P(lo,90));x.lineTo(...P(lo,-90));x.stroke()}for(let la=-60;la<=60;la+=30){x.beginPath();x.moveTo(...P(-180,la));x.lineTo(...P(180,la));x.stroke()}
- x.strokeStyle='rgba(0,240,255,.7)';x.shadowColor='#00f0ff';x.shadowBlur=4;LAND.forEach(r=>{x.beginPath();r.forEach((p,i)=>i?x.lineTo(...P(...p)):x.moveTo(...P(...p)));x.closePath();x.stroke()});x.shadowBlur=0;
+let landCV=null,landKey='';
+function drawMap(){const got=cv('#map');if(!got)return;const [x,w,h,r]=got;const P=(lo,la)=>[(lo+180)/360*w,(90-la)/180*h];
+ const key=Math.round(w)+'x'+Math.round(h)+'@'+r.toFixed(4);
+ if(landKey!==key){const c=landCV=document.createElement('canvas');c.width=Math.max(1,Math.round(w*r));c.height=Math.max(1,Math.round(h*r));
+  const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);
+  g.strokeStyle='rgba(255,43,214,.18)';g.lineWidth=1;
+  for(let lo=-180;lo<=180;lo+=30){g.beginPath();g.moveTo(...P(lo,90));g.lineTo(...P(lo,-90));g.stroke()}
+  for(let la=-60;la<=60;la+=30){g.beginPath();g.moveTo(...P(-180,la));g.lineTo(...P(180,la));g.stroke()}
+  g.strokeStyle='rgba(0,240,255,.7)';g.shadowColor='#00f0ff';g.shadowBlur=4;g.beginPath();
+  LAND.forEach(ring=>{ring.forEach((p,i)=>i?g.lineTo(...P(...p)):g.moveTo(...P(...p)));g.closePath()});
+  g.stroke();g.shadowBlur=0;landKey=key}
+ x.drawImage(landCV,0,0,w,h);
  const by={};(S.daily||[]).forEach(d=>{const k=d.station;if(!by[k]||(d.best?.edge??-1)>(by[k].best?.edge??-1))by[k]=d;by[k].vt=(by[k].vt||0)+d.vol});
- Object.values(by).forEach(d=>{const [px,py]=P(d.lon,d.lat),e=d.best?.edge??0,r=3+Math.min(10,Math.sqrt((d.vt||0)/2000));x.fillStyle=e>=0.06?'#39ff14':e>0?'#ffb000':'#ff2bd6';x.shadowColor=x.fillStyle;x.shadowBlur=12;x.beginPath();x.arc(px,py,r,0,7);x.fill()});x.shadowBlur=0}
+ Object.values(by).forEach(d=>{const [px,py]=P(d.lon,d.lat),e=d.best?.edge??0,rad=3+Math.min(10,Math.sqrt((d.vt||0)/2000));x.fillStyle=e>=0.06?'#39ff14':e>0?'#ffb000':'#ff2bd6';x.shadowColor=x.fillStyle;x.shadowBlur=12;x.beginPath();x.arc(px,py,rad,0,7);x.fill()});x.shadowBlur=0}
 function drawer(d){if(!d)return;const mx=Math.max(...d.buckets.map(b=>Math.max(b.p,b.ask||0)),.01);
  const hist={};d.vals.forEach(v=>{const k=Math.round(v);hist[k]=(hist[k]||0)+1});const hk=Object.keys(hist).map(Number).sort((a,b)=>a-b),hm=Math.max(...Object.values(hist));
  $('#drawer').innerHTML=`<h2 class="chrome">${esc(d.city.toUpperCase())} · ${d.kind==='daily_high'?'HIGH':'LOW'} · ${esc(d.date)}</h2>
@@ -41,12 +58,12 @@ function render(){if(!S)return;const D=S.desks||{},eq=(D.daily?.equity||0)+(D.ho
   const fh=(S.signals||[]).map(g=>`<li><span>${g.edge!=null&&g.edge>0?'▲':'◆'}</span><span>${esc(g.line)}${(g.signal_only||/SIGNAL ONLY/i.test(g.line||''))?'<b class="tag">SIGNAL ONLY</b>':''}</span><button class="pill" data-c="${esc(g.line)}">COPY</button></li>`).join('')||'<li class="dim">no signals yet</li>';if($('#feed').dataset.h!==fh){$('#feed').innerHTML=fh;$('#feed').dataset.h=fh}
   document.querySelectorAll('#feed button').forEach(b=>b.onclick=()=>navigator.clipboard?.writeText(b.dataset.c))}
  // equity curves
- {const [x,w,h]=cv('#eq');const all=['daily','hourly'].flatMap(k=>(D[k]?.curve||[]).map(p=>p[1]-D[k].bankroll));const mn=Math.min(0,...all)-.5,mx=Math.max(0,...all)+.5;
+ {const got=cv('#eq');if(got){const [x,w,h]=got;const all=['daily','hourly'].flatMap(k=>(D[k]?.curve||[]).map(p=>p[1]-D[k].bankroll));const mn=Math.min(0,...all)-.5,mx=Math.max(0,...all)+.5;
   x.fillStyle='#9ab';x.font='11px STM';x.fillText('P&L vs start ($)  ━ daily (cyan)  ━ hourly (pink)',4,12);
-  [['daily','#00f0ff'],['hourly','#ff2bd6']].forEach(([k,c])=>{const cu=D[k]?.curve||[];if(cu.length<2){x.fillStyle=c;x.fillText(k+': no settled trades yet',4,k==='daily'?40:58)}line(x,cu.map(p=>[p[0],p[1]-D[k].bankroll]),w,h,c,mn,mx,cu[0]?.[0]||0,cu.at(-1)?.[0]||1)})}
+  [['daily','#00f0ff'],['hourly','#ff2bd6']].forEach(([k,c])=>{const cu=D[k]?.curve||[];if(cu.length<2){x.fillStyle=c;x.fillText(k+': no settled trades yet',4,k==='daily'?40:58)}line(x,cu.map(p=>[p[0],p[1]-D[k].bankroll]),w,h,c,mn,mx,cu[0]?.[0]||0,cu.at(-1)?.[0]||1)})}}
  // calibration: from backtest if ledger is thin
- {const [x,w,h]=cv('#cal');const cal=D.daily?.calib||S.backtest?.daily?.calib;x.strokeStyle='rgba(255,255,255,.25)';x.beginPath();x.moveTo(0,h);x.lineTo(w,0);x.stroke();x.fillStyle='#9ab';x.font='11px STM';x.fillText(D.daily?.calib?'paper ledger':'backtest buckets (daily)',4,12);
-  if(cal)Object.entries(cal).forEach(([k,[n,f]])=>{const b=parseInt(k)/100+.05;x.fillStyle=Math.abs(f-b)<=.07?'#39ff14':'#ffb000';x.beginPath();x.arc(b*w,h-f*h,3+Math.min(8,Math.log(n+1)),0,7);x.fill()})}
+ {const got=cv('#cal');if(got){const [x,w,h]=got;const cal=D.daily?.calib||S.backtest?.daily?.calib;x.strokeStyle='rgba(255,255,255,.25)';x.beginPath();x.moveTo(0,h);x.lineTo(w,0);x.stroke();x.fillStyle='#9ab';x.font='11px STM';x.fillText(D.daily?.calib?'paper ledger':'backtest buckets (daily)',4,12);
+  if(cal)Object.entries(cal).forEach(([k,[n,f]])=>{const b=parseInt(k)/100+.05;x.fillStyle=Math.abs(f-b)<=.07?'#39ff14':'#ffb000';x.beginPath();x.arc(b*w,h-f*h,3+Math.min(8,Math.log(n+1)),0,7);x.fill()})}}
  $('#gauges').innerHTML=['daily','hourly'].map(k=>`<div class="small cy">${k.toUpperCase()} · bankroll $${D[k]?.bankroll} · ${D[k]?.halted?'<span class="warn">⚠ '+esc(D[k].halted)+'</span>':'✔ OK'}</div>`+Object.entries(D[k]?.gauges||{}).map(([n,v])=>`<div class="gauge small">${n} ${(v*100).toFixed(0)}% of limit<b><i style="width:${Math.min(100,v*100)}%"></i></b></div>`).join('')).join('');
  const B=S.backtest;$('#bt').innerHTML=B?['daily','hourly'].map(k=>{const r=B[k];return `<div><b class="cy">${k.toUpperCase()}</b> trades ${r.trades} · P&L <span class="${cls(r.pnl)}">${sgn(r.pnl)}</span> · ROI ${r.roi==null?'—':sgn(r.roi*100,1,'%')} · win ${r.win_rate==null?'—':(r.win_rate*100).toFixed(0)+'%'} · maxDD $${r.max_dd} · Brier model ${r.brier_model} vs mkt ${r.brier_market}</div>`}).join('')+`<div class="small dim">simulated on history, not real money · ${new Date(B.ts*1000).toLocaleString()}</div>`:'no backtest yet';
  $('#log').textContent=(S.trades||[]).map(t=>`${new Date(t.ts*1000).toLocaleTimeString()} ${t.desk.padEnd(6)} ${t.side.padEnd(3)} ${t.size.toFixed(1)}@${t.price.toFixed(2)} p=${(t.model_p||0).toFixed(2)} ${t.status}${t.pnl!=null?' '+sgn(t.pnl):''}  ${(t.note||'').slice(0,60)}`).join('\n')||'> awaiting first paper trade_';}
@@ -61,4 +78,4 @@ async function load(){try{const r=await fetch(SRC+(SRC.includes('?')?'&':'?')+'t
 function stale(){if(!lastPush)return;const a=Math.round((Date.now()-lastPush)/1000);$('#stale').hidden=a<=90;$('#stale').textContent='STALE · box last pushed '+a+'s ago, pusher or box may be down'}
 if(SRC&&KEY&&/^https:\/\//.test(SRC)){load();setInterval(load,15000);setInterval(stale,1000)}
 else{$('#demo').hidden=false;fetch('example.json').then(r=>r.json()).then(j=>{S=j;S.now=Date.now()/1000;S.heartbeat=S.now-5;render()})}
-addEventListener('resize',render);
+let _rz=0;addEventListener('resize',()=>{if(_rz)return;_rz=requestAnimationFrame(()=>{_rz=0;render()})});

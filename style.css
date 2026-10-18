@@ -7,8 +7,7 @@ body{margin:0;background:var(--bg);color:#cfe9ff;font:14px STM,monospace;min-hei
 #grid{position:fixed;inset:0;z-index:-2;perspective:320px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#1a0640 0,#05010f 65%)}
 .floor{position:absolute;left:-50%;right:-50%;bottom:-30%;height:80%;transform:rotateX(70deg);
  background-image:linear-gradient(var(--mag) 1px,transparent 1px),linear-gradient(90deg,var(--cy) 1px,transparent 1px);
- background-size:60px 60px;opacity:.28;animation:roll 6s linear infinite;mask-image:linear-gradient(transparent,#000 60%)}
-@keyframes roll{to{background-position:0 60px}}
+ background-size:60px 60px;opacity:.28;mask-image:linear-gradient(transparent,#000 60%)}
 #scan{position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.18) 2px 3px);box-shadow:inset 0 0 160px rgba(0,0,0,.85)}
 .chrome{font-family:Orbitron,sans-serif;letter-spacing:.12em;margin:0 0 8px;background:linear-gradient(180deg,#fff 0,#c9c9d9 40%,#b48cff 60%,#e8d9ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 6px rgba(180,140,255,.5))}
 h1.chrome{font-size:22px;margin:0}h1 span{color:var(--mag);-webkit-text-fill-color:var(--mag)}
