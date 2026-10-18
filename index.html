@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>WEATHER//TERMINAL</title><link rel="stylesheet" href="style.css">
+</head><body>
+<div id="demo" class="banner demo" hidden>EXAMPLE DATA · open your private link to see the live paper feed</div>
+<div id="stale" class="banner stale" hidden>STALE · box feed not updated in 90s+</div>
+<div id="grid" aria-hidden="true"><div class="floor"></div></div><div id="scan" aria-hidden="true"></div>
+<div id="boot" role="status" onclick="this.remove()"><pre id="bootTxt"></pre><small>click to skip</small></div>
+<header class="bar panel">
+  <h1 class="chrome">WEATHER<span>//</span>TERMINAL</h1>
+  <div class="clocks"><div><label>CENTRAL</label><b id="ctClock" class="mono">--</b></div><div><label>YOUR TIME</label><b id="myClock" class="mono">--</b></div></div>
+  <span id="mode" class="pill mode">PAPER</span>
+  <div><label>EQUITY</label><b id="equity" class="mono big">--</b></div>
+  <div><label>TODAY</label><b id="today" class="mono big">--</b></div>
+  <div class="ro">READ-ONLY VIEW · kill switch lives on the box dashboard only</div>
+</header>
+<nav class="tabs" role="tablist"><button class="pill tab on" data-t="daily" role="tab">DAILY DESK</button><button class="pill tab" data-t="hourly" role="tab">HOURLY DESK</button><span id="status" class="mono dim"></span></nav>
+<main>
+<section id="daily" class="desk on">
+  <div class="row2">
+    <div class="panel"><h2 class="chrome">GLOBAL STATION MAP</h2><canvas id="map" height="300"></canvas><p class="dim small">dot size = 24h volume · color = best edge (▲ green positive, ▼ pink negative)</p></div>
+    <div class="panel" id="drawer"><h2 class="chrome">CITY DETAIL</h2><p class="dim">select a city row</p></div>
+  </div>
+  <div class="panel"><h2 class="chrome">CITY TABLE</h2><div class="scroll"><table id="cities"><thead><tr><th>City</th><th>Type</th><th>Date</th><th>Station</th><th>Forecast</th><th>Spread</th><th>Obs so far</th><th>Mkt favorite</th><th>Best edge bucket</th><th>Edge ¢</th><th>Position</th></tr></thead><tbody></tbody></table></div></div>
+</section>
+<section id="hourly" class="desk">
+  <div id="cards" class="cards"></div>
+  <div class="panel"><h2 class="chrome">ROBINHOOD SIGNAL FEED</h2><p class="dim small">Signals only. The bot never touches Robinhood. <b class="warn">⚠ UNPROVEN: the hourly backtest is currently negative (see BACKTEST panel). Treat these as paper signals; the go-live gate (300 settled paper contracts, ROI ≥ +5%) has not passed.</b></p><ul id="feed" class="feed"></ul></div>
+</section>
+<div class="row3">
+  <div class="panel"><h2 class="chrome">EQUITY CURVES</h2><canvas id="eq" height="170"></canvas></div>
+  <div class="panel"><h2 class="chrome">CALIBRATION</h2><canvas id="cal" height="170"></canvas></div>
+  <div class="panel"><h2 class="chrome">RISK LIMITS</h2><div id="gauges"></div></div>
+</div>
+<div class="row2">
+  <div class="panel"><h2 class="chrome">BACKTEST (SIMULATED)</h2><div id="bt" class="mono"></div></div>
+  <div class="panel"><h2 class="chrome">TRADE LOG</h2><div id="log" class="log mono"></div></div>
+</div>
+</main>
+<script src="land.js"></script><script src="app.js"></script>
+<noscript><p style="padding:16px">This dashboard needs JavaScript to decrypt and draw the feed.</p></noscript>
+</body></html>
